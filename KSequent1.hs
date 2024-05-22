@@ -1,4 +1,4 @@
-module KSequent (Sequent, Preuve, isValidProof) where
+module KSequent1 (Sequent, Preuve(..), isValidProof) where
 import LogLin 
 ------------------SEQUENTS UNILATERES---------------------------------------
 newtype Sequent = Sequent [LL] deriving Show
@@ -104,7 +104,7 @@ isValidProof p = case p of
         areNegation f g       -- 
     AxUn -> 
         True
-    TopRule (_:_) ->            -- On teste que gamma n'est pas vide
+    TopRule _ -> 
         True
     ExRule gamma f g delta p -> 
         (Sequent(f:g:(gamma++delta)) == (getConclusion p))
