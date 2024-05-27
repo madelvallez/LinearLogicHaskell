@@ -69,3 +69,126 @@ elimCut p
             let p1' = elimCut p1 in
             (ContrRule f gamma p1')
         p -> p  --Cas Axiomes
+
+
+
+
+
+applyComm :: Preuve -> Preuve
+applyComm (CutRule f gamma fOrtho delta p1 p2)
+    | (getProduit p1) /= f =
+        applyLeftComm (CutRule f gamma fOrtho delta p1 p2)
+    | (getProduit p2) /= fOrtho =
+        applyRightComm (CutRule f gamma fOrtho delta p1 p2)
+    | otherwise =
+        error "Not a commutation case"
+applyComm _ = error "Not a commutation case"
+
+applyLeftComm :: Preuve -> Preuve
+applyLeftComm (CutRule f gammaCut fOrtho delta 
+                (ParrRule a b gammaParr p1)
+                p2 ) =
+    let gamma = filter ((/=) f) gammaParr in
+        ParrRule a b (gamma++delta) 
+            (CutRule f (a:b:gamma) fOrtho delta p1 p2)
+applyLeftComm (CutRule c gammaCut cOrtho delta 
+        (TensorRule a gammaG b gammaD p1 p2) 
+        p3) 
+    |c `elem` gammaG =
+        let (gamma, gamma') = (filter ((/=) c) gammaG ,gammaD) in
+        TensorRule a (gamma++delta) b gamma' 
+            (CutRule c (a:gamma) cOrtho delta p1 p3)
+            p2 
+    |c `elem` gammaD =
+        let (gamma,gamma') = (gammaG, filter ((/=) c) gammaD) in
+        TensorRule a gamma b (gamma'++delta)
+            p1
+            (CutRule c (b:gamma') cOrtho delta p2 p3) 
+    | otherwise = 
+        error "Invalid proof"
+applyLeftComm (CutRule c gammaCut cOrtho delta
+        (BotRule gamma p1)
+        p2) =
+    BotRule (gamma++delta) (CutRule c gamma cOrtho delta p1 p2)
+applyLeftComm (CutRule c gammaCut cOrtho delta 
+                (WithRule a b gammaWith p1 p2) 
+                p3) =
+    let gamma = filter ((/=) c) gammaWith in
+    WithRule a b (gamma++delta)
+        (CutRule c (a:gamma) cOrtho delta p1 p3)
+        (CutRule c (b:gamma) cOrtho delta p2 p3)
+applyLeftComm (CutRule c gammaCut cOrtho delta (TopRule gammaTop) p) =
+    let gamma = filter ((/=) c) gammaTop in
+    TopRule (gamma++delta)
+applyLeftComm (CutRule c gammaCut cOrtho delta
+        (PlusDRule a b gammaPlus p1)
+        p2) =
+    let gamma = filter ((/=) c) gammaPlus in
+        PlusDRule a b (gamma++delta) 
+            (CutRule c (a:gamma) cOrtho delta p1 p2)
+applyLeftComm (CutRule c gammaCut cOrtho delta
+        (PlusGRule a b gammaPlus p1)
+        p2) =
+    let gamma = filter ((/=) c) gammaPlus in
+        PlusGRule a b (gamma++delta) 
+            (CutRule c (b:gamma) cOrtho delta p1 p2)
+applyLeftComm (CutRule c gamma cOrtho deltaCut
+        p1 
+        (PlusGRule a b deltaPlus p2)) =
+    let delta = filter ((/=) cOrtho) deltaPlus in
+        PlusGRule a b (gamma++delta)
+            (CutRule c gamma cOrtho (b:delta) p1 p2)
+
+
+
+
+applyRightComm :: Preuve -> Preuve
+applyRightComm (CutRule f gamma fOrtho deltaCut
+                p1
+                (ParrRule a b deltaParr p2))=
+    let delta = filter ((/=) fOrtho) deltaParr in
+        ParrRule a b (gamma++delta)
+            (CutRule f gamma fOrtho (a:b:delta) p1 p2) 
+applyRightComm (CutRule c gamma cOrtho deltaCut
+        (p1)
+        (TensorRule a deltaG b deltaD p2 p3))
+    |cOrtho `elem` deltaG =
+        let (delta, delta') = (filter ((/=) cOrtho) deltaG, deltaD) in
+        (TensorRule a (gamma++delta) b delta' 
+            (CutRule c gamma cOrtho (a:delta) p1 p2)
+            p3)
+    |cOrtho `elem` deltaD =
+        let (delta,delta') = (deltaG, filter ((/=) c) deltaD) in
+        TensorRule a delta b (gamma++delta')
+            p2
+            (CutRule c gamma cOrtho (b:delta') p1 p3)
+    |otherwise = 
+        error "Invalid Proof"
+applyRightComm (CutRule c gamma cOrtho deltaCut
+        p1 
+        (BotRule delta p2)) =
+    BotRule (gamma++delta) (CutRule c gamma cOrtho delta p1 p2)
+applyRightComm (CutRule c gamma cOrtho deltaCut
+                p1
+                (WithRule a b deltaWith p2 p3)) =
+    let delta = filter ((/=) cOrtho) deltaWith in
+        (WithRule a b (gamma++delta)
+            (CutRule c gamma cOrtho (a:delta) p1 p2) 
+            (CutRule c gamma cOrtho (b:delta) p1 p3))
+applyRightComm (CutRule c gamma cOrtho deltaCut p (TopRule deltaTop)) =
+    let delta = filter ((/=) cOrtho) deltaTop in
+        TopRule (gamma++delta)
+applyRightComm (CutRule c gamma cOrtho deltaCut
+                p1
+                (PlusDRule a b deltaPlus p2)) =
+    let delta = filter ((/=) c ) deltaPlus in
+        (PlusDRule a b (gamma++delta) 
+            (CutRule c gamma cOrtho (a:delta) p1 p2))
+applyRightComm (CutRule c gamma cOrtho deltaCut
+                p1 
+                (PlusGRule a b deltaPlus p2)) =
+    let delta = filter ((/=) cOrtho) deltaPlus in
+        (PlusGRule a b (gamma++delta)
+            (CutRule c gamma cOrtho (b:delta) p1 p2))
+
+

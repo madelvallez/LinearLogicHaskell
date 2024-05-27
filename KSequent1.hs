@@ -1,4 +1,4 @@
-module KSequent1 (Sequent, Preuve(..), isValidProof) where
+module KSequent1 (Sequent(..), Preuve(..), isValidProof, getProduit,getConclusion, isRedex, isCutRooted,isLeftChildCutRooted, isRightChildCutRooted, isWhyNotSequent) where
 import LogLin 
 ------------------SEQUENTS UNILATERES---------------------------------------
 newtype Sequent = Sequent [LL] deriving Show
@@ -45,7 +45,7 @@ pasWhyNotSequent3 = Sequent [WhyNot(Var "A"), WhyNot(Var "A"), Tensor a b]
 data Preuve = AxRule LL LL
     | AxUn 
     | TopRule [LL]
-    | ExRule [LL] LL LL [LL] Preuve
+--    | ExRule [LL] LL LL [LL] Preuve
     | CutRule LL [LL] LL [LL] Preuve Preuve
     | TensorRule LL [LL] LL [LL] Preuve Preuve
     | ParrRule LL LL [LL] Preuve
@@ -57,6 +57,8 @@ data Preuve = AxRule LL LL
     | DerRule LL [LL] Preuve
     | AffRule LL [LL] Preuve
     | ContrRule LL [LL] Preuve
+    deriving Show
+
 
 a::LL
 a = Var "A"
@@ -85,7 +87,7 @@ getConclusion p = case p of
     AxRule f g -> Sequent [f,g]
     AxUn -> Sequent [Un]
     TopRule gamma -> Sequent (Top:gamma)
-    ExRule gamma f g delta _ -> Sequent (f:g:(gamma ++ delta))
+--    ExRule gamma f g delta _ -> Sequent (f:g:(gamma ++ delta))
     CutRule _ gamma _ delta _ _ -> Sequent (gamma ++ delta)
     TensorRule f gamma g delta _ _ -> Sequent ((Tensor f g):(delta ++ gamma))
     ParrRule f g gamma _ -> Sequent ((Parr f g):gamma)
@@ -96,7 +98,48 @@ getConclusion p = case p of
     PromRule f gamma _ -> Sequent ((OfCourse f):gamma)
     DerRule f gamma _ -> Sequent ((WhyNot f):gamma)
     AffRule f gamma _ -> Sequent ((WhyNot f) : gamma)
-    ContrRule f gamma _ -> Sequent (f:gamma)
+    ContrRule f gamma _ -> Sequent ((WhyNot f):gamma)
+
+
+
+getProduit :: Preuve -> [LL]     --revoie un sequent avec les formules introduites par la dernière règle appliquée
+getProduit (AxRule a aOrtho) =  [a, aOrtho]
+getProduit AxUn =  [Un]
+getProduit (TopRule _) =  [Top]
+getProduit (CutRule _ _ _ _ _ _ ) =  []
+getProduit (TensorRule a _ b _ _ _ )=  [Tensor a b]
+getProduit (ParrRule a b _ _) =  [Parr a b]
+getProduit (BotRule _ _) =  [Bot]
+getProduit (PlusDRule a b _ _) =  [Plus a b]
+getProduit (PlusGRule a b _ _) =  [Plus a b]
+getProduit (WithRule a b _ _ _) =  [With a b]
+getProduit (PromRule a _ _) =  [OfCourse a]
+getProduit (DerRule a _ _) =  [WhyNot a]
+getProduit (AffRule a _ _) =  [WhyNot a]
+getProduit (ContrRule a _ _) =  [WhyNot a]
+
+isAxRuleRooted :: Preuve -> Bool
+isAxRuleRooted (AxRule _ _) = True
+isAxRuleRooted _ = False
+
+isRedex ::Preuve -> Bool
+isRedex (CutRule f _ fOrtho _ p1 p2) = 
+    (isAxRuleRooted p1)
+    || (isAxRuleRooted p2)
+    || ((f `elem` (getProduit p1)) && (fOrtho `elem` (getProduit p2)))
+isRedex _ = False 
+
+isCutRooted :: Preuve -> Bool
+isCutRooted (CutRule _ _ _ _ _ _) = True
+isCutRooted _ = False
+
+isLeftChildCutRooted :: Preuve -> Bool -- teste si un preuve cutRooted à sa souspreuve gauche cutRooted
+isLeftChildCutRooted (CutRule _ _ _ _ pch _) = isCutRooted pch
+isLeftChildCutRooted _ = False
+
+isRightChildCutRooted :: Preuve -> Bool -- teste si un preuve cutRooted à sa souspreuve gauche cutRooted
+isRightChildCutRooted (CutRule _ _ _ _ _ pch) = isCutRooted pch
+isRightChildCutRooted _ = False
 
 isValidProof :: Preuve -> Bool
 isValidProof p = case p of
@@ -106,9 +149,9 @@ isValidProof p = case p of
         True
     TopRule _ -> 
         True
-    ExRule gamma f g delta p -> 
-        (Sequent(f:g:(gamma++delta)) == (getConclusion p))
-        &&(isValidProof p)
+    -- ExRule gamma f g delta p -> 
+    --     (Sequent(f:g:(gamma++delta)) == (getConclusion p))
+    --     &&(isValidProof p)
     CutRule f gamma g delta pg pd -> 
         (areNegation f g)
         &&(Sequent(f:gamma)==(getConclusion pg))
