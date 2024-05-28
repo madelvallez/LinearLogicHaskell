@@ -1,4 +1,4 @@
-module KSequent1 (Sequent(..), Preuve(..), isValidProof, getProduit,getConclusion, isRedex, isCutRooted,isLeftChildCutRooted, isRightChildCutRooted, isWhyNotSequent) where
+module KSequent1 (Sequent(..), Preuve(..), isValidProof, getProduit,getConclusion, isRedex, isCutRooted, isLeftChildCutRooted, isRightChildCutRooted) where
 import LogLin 
 ------------------SEQUENTS UNILATERES---------------------------------------
 newtype Sequent = Sequent [LL] deriving Show

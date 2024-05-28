@@ -161,3 +161,40 @@ pred5 = CutRule (WhyNot (Not a)) [OfCourse c, WhyNot (Not c)] (OfCourse a) [Plus
                     (DerRule (Not a) [a]
                         (AxRule a (Not a)))))
 
+main = 
+    if not (isValidProof (elimCut pcom1)) then
+        error "isValidProof (elimCut pcom1) == False"
+    else if not (isValidProof (elimCut pcom1')) then
+        error "isValidProof (elimCut pcom1') == False"
+    else if not (isValidProof (elimCut pcom1'')) then
+        error "isValidProof (elimCut pcom1'') == False"
+    else if not (isValidProof (elimCut pcom2)) then
+        error "isValidProof (elimCut pcom2) == False"
+    else if not (isValidProof (elimCut pcom2')) then
+        error "isValidProof (elimCut pcom2') == False"
+    else if not (isValidProof (elimCut pcom3)) then
+        error "isValidProof (elimCut pcom3) == False"
+    else if not (isValidProof (elimCut pcom3')) then
+        error "isValidProof (elimCut pcom3') == False"
+    else if not (isValidProof (elimCut pcom3'')) then
+        error "isValidProof (elimCut pcom3'') == False"
+    else if not (isValidProof (elimCut pcom3''')) then
+        error "isValidProof (elimCut pcom3''') == False"
+    else if not (isValidProof (elimCut pcom4)) then
+        error "isValidProof (elimCut pcom4) == False"
+    else if not (isValidProof (elimCut pcom4')) then
+        error "isValidProof (elimCut pcom4') == False"
+    else if not (isValidProof (elimCut pcomplus)) then
+        error "isValidProof (elimCut pcomplus) == False"
+    else if not (isValidProof (elimCut pred1)) then
+        error "isValidProof (elimCut pred1) == False"
+    else if  not (isValidProof (elimCut pred2)) then
+        error "isValidProof (elimCut pred2) == False"
+    else if not (isValidProof (elimCut pred3)) then
+        error "isValidProof (elimCut pred3) == False"
+    else if  not (isValidProof (elimCut pred4)) then
+        error "isValidProof (elimCut pred4) == False"
+    else if  not (isValidProof (elimCut pred5)) then
+        error "isValidProof (elimCut pred5) == False"
+    else 
+        print "Tests OK"

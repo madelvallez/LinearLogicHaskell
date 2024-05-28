@@ -1,4 +1,4 @@
-module ElimCut(elimCut, applyComm, applyRightComm, applyLeftComm, applyRedex, getCutStatus, isPromRooted) where
+module ElimCut(elimCut) where
 import LogLin
 import KSequent1
 import Data.List
