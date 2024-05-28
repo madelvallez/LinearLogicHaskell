@@ -12,7 +12,7 @@ removeNTimes n f (f':t)
 
 
 
-applyRedex :: Preuve -> Preuve     -- reduit p qui commence par un redex (rien sinon)
+applyRedex :: Proof -> Proof     -- applies the redex on the root of the proof
 applyRedex p = case p of
     CutRule _ _ _ _ (AxRule _ _) p2 -> p2
     CutRule _ _ _ _ p1 (AxRule _ _) -> p1
@@ -35,23 +35,23 @@ applyRedex p = case p of
     CutRule Bot gamma Un delta (BotRule deltaBot p) AxUn -> p
 
     CutRule f gamma fOrtho delta 
-        (PlusDRule fPlus gPlus gammaPlus p1)
+        (PlusRRule fPlus gPlus gammaPlus p1)
         (WithRule fWith gWith deltaWith p2 p3)
         -> CutRule fPlus gammaPlus fWith deltaWith p1 p2
 
     CutRule f gamma fOrtho delta
         (WithRule a b gammaWith p1 p2)
-        (PlusDRule aOrtho bOrtho deltaPlus p3)
+        (PlusRRule aOrtho bOrtho deltaPlus p3)
         -> CutRule a gammaWith aOrtho deltaPlus p1 p3
 
     CutRule f gamma fOrtho delta 
-        (PlusGRule fPlus gPlus gammaPlus p1)
+        (PlusLRule fPlus gPlus gammaPlus p1)
         (WithRule fWith gWith deltaWith p2 p3)
         -> CutRule gPlus gammaPlus gWith deltaWith p1 p3
 
     CutRule f gamma fOrtho delta
         (WithRule a b gammaWith p1 p2)
-        (PlusGRule aOrtho bOrtho deltaPlus p3)
+        (PlusLRule aOrtho bOrtho deltaPlus p3)
         -> CutRule b gammaWith bOrtho deltaPlus p2 p3
 
     CutRule fOC gammaWN fOrthoWN delta 
@@ -67,75 +67,75 @@ applyRedex p = case p of
     CutRule fOC gammaWN fOrthoWN delta 
         (PromRule f gamma p1)
         (AffRule fOrtho deltaAff p2)
-        -> let itereWhyNotRule gamma proof = case gamma of
+        -> let iterateWhyNotRule gamma proof = case gamma of
                 [] -> proof
                 (f:gamma') -> let Sequent delta = getConclusion proof in
                     let WhyNot f' = f in
-                    itereWhyNotRule gamma'(AffRule f' delta proof)
-            in itereWhyNotRule gamma p2
+                    iterateWhyNotRule gamma'(AffRule f' delta proof)
+            in iterateWhyNotRule gamma p2
 
     CutRule fWN gamma fOrthoWN deltaCut
         (AffRule f gammaAff p1)
         (PromRule fOrtho deltaWN p2)
-        -> let itereAffRule gamma proof = case gamma of
+        -> let iterateAffRule gamma proof = case gamma of
                 [] -> proof
                 (f:gamma') -> let Sequent delta = getConclusion proof in
                     let WhyNot f' = f in
-                    itereAffRule gamma'(AffRule f' delta proof)
-            in itereAffRule deltaWN p1
+                    iterateAffRule gamma'(AffRule f' delta proof)
+            in iterateAffRule deltaWN p1
 
     CutRule fOC gammaWN fOrthoWN delta
         (PromRule f gamma p1)
         (ContrRule fOrtho deltaContr p2)
-        -> let itereContrRule gammaWN proof = case gammaWN of
+        -> let iterateContrRule gammaWN proof = case gammaWN of
                 [] -> proof
                 (f:gammaWN') -> 
                     let Sequent gamma' = (getConclusion proof)
                     in let gamma = removeNTimes 2 f gamma'
                     in let WhyNot f' = f
-                    in itereContrRule gammaWN' (ContrRule f' gamma proof)
+                    in iterateContrRule gammaWN' (ContrRule f' gamma proof)
            in let subProof = CutRule fOC gammaWN fOrthoWN (gammaWN++delta)
                                 (PromRule f gamma p1)
                                 (CutRule fOC gammaWN fOrthoWN (fOrthoWN:delta)
                                     (PromRule f gamma p1)
                                     p2)
-           in itereContrRule gammaWN subProof
+           in iterateContrRule gammaWN subProof
 
     CutRule fWN gamma fOrthoOC deltaWN
         (ContrRule fWN' gammaContr p1)
         (PromRule fOrtho deltaWN' p2)
-        -> let itereContrRule gammaWN proof = case gammaWN of
+        -> let iterateContrRule gammaWN proof = case gammaWN of
                 [] -> proof
                 (f:gammaWN') -> 
                     let Sequent gamma' = getConclusion proof 
                     in let gamma = removeNTimes 2 f gamma'
-                    in itereContrRule gammaWN' (ContrRule f gamma proof)
+                    in iterateContrRule gammaWN' (ContrRule f gamma proof)
            in let subProof = CutRule fWN (fWN:gamma++deltaWN) fOrthoOC deltaWN
                                 (CutRule fWN (fWN:gamma) fOrthoOC deltaWN 
                                     p1
                                     (PromRule fOrtho deltaWN p2))
                                 (PromRule fOrtho deltaWN p2)
-           in itereContrRule deltaWN subProof
+           in iterateContrRule deltaWN subProof
 
 
 
 
 
-getCutStatus :: Preuve -> (Bool,Bool,Bool,Bool)   
-    --indique les informations suivantes 
-    --  - si la règle fils gauche de cut est coupée
-    --  - si la règle fils droite de cut est coupée
-    --  - si la règle fils gauche est ParrRule
-    --  - si la règle fils droite est ParrRule
+getCutStatus :: Proof -> (Bool,Bool,Bool,Bool)   
+    --gives the following infos  
+    --  - CutRule's left-child's Rule is cutted
+    --  - CutRule's right-child's Rule is cutted
+    --  - CutRule's left-child's Rule is a PromRule
+    --  - CutRule's right-child's Rule is a PromRule
 getCutStatus (CutRule f gamma fOrtho delta p1 p2) =
-    (f `elem` getProduit p1 , fOrtho `elem` getProduit p2, isPromRooted p1, isPromRooted p2)
+    (f `elem` getProduction p1 , fOrtho `elem` getProduction p2, isPromRooted p1, isPromRooted p2)
 getCutStatus _ = error "getCutStatus only works on cutRooted Proofs"
 
-isPromRooted :: Preuve -> Bool
+isPromRooted :: Proof -> Bool
 isPromRooted (PromRule _ _ _) = True 
 isPromRooted _ = False
 
-applyComm :: Preuve -> Preuve
+applyComm :: Proof -> Proof
 applyComm p  = case (getCutStatus p) of
     (False, _, True, True) -> applyLeftComm p
     (False, _, True, False) -> applyRightComm p 
@@ -146,7 +146,7 @@ applyComm p  = case (getCutStatus p) of
     _ -> applyLeftComm p
 
 
-applyLeftComm :: Preuve -> Preuve
+applyLeftComm :: Proof -> Proof
 applyLeftComm (CutRule f gammaCut fOrtho delta 
                 (ParrRule a b gammaParr p1)
                 p2 ) =
@@ -183,22 +183,22 @@ applyLeftComm (CutRule c gammaCut cOrtho delta (TopRule gammaTop) p) =
     let gamma = filter ((/=) c) gammaTop in
     TopRule (gamma++delta)
 applyLeftComm (CutRule c gammaCut cOrtho delta
-        (PlusDRule a b gammaPlus p1)
+        (PlusRRule a b gammaPlus p1)
         p2) =
     let gamma = filter ((/=) c) gammaPlus in
-        PlusDRule a b (gamma++delta) 
+        PlusRRule a b (gamma++delta) 
             (CutRule c (a:gamma) cOrtho delta p1 p2)
 applyLeftComm (CutRule c gammaCut cOrtho delta
-        (PlusGRule a b gammaPlus p1)
+        (PlusLRule a b gammaPlus p1)
         p2) =
     let gamma = filter ((/=) c) gammaPlus in
-        PlusGRule a b (gamma++delta) 
+        PlusLRule a b (gamma++delta) 
             (CutRule c (b:gamma) cOrtho delta p1 p2)
 applyLeftComm (CutRule c gamma cOrtho deltaCut
         p1 
-        (PlusGRule a b deltaPlus p2)) =
+        (PlusLRule a b deltaPlus p2)) =
     let delta = filter ((/=) cOrtho) deltaPlus in
-        PlusGRule a b (gamma++delta)
+        PlusLRule a b (gamma++delta)
             (CutRule c gamma cOrtho (b:delta) p1 p2)
 applyLeftComm (CutRule cWN gammaCut cOrthoOC wndelta 
                 (PromRule a gammaProm p1)
@@ -232,7 +232,7 @@ applyLeftComm (CutRule c gammaCut cOrtho delta
 
 
 
-applyRightComm :: Preuve -> Preuve
+applyRightComm :: Proof -> Proof
 applyRightComm (CutRule f gamma fOrtho deltaCut
                 p1
                 (ParrRule a b deltaParr p2))=
@@ -271,15 +271,15 @@ applyRightComm (CutRule c gamma cOrtho deltaCut p (TopRule deltaTop)) =
         TopRule (gamma++delta)
 applyRightComm (CutRule c gamma cOrtho deltaCut
                 p1
-                (PlusDRule a b deltaPlus p2)) =
+                (PlusRRule a b deltaPlus p2)) =
     let delta = filter ((/=) cOrtho ) deltaPlus in
-        (PlusDRule a b (gamma++delta) 
+        (PlusRRule a b (gamma++delta) 
             (CutRule c gamma cOrtho (a:delta) p1 p2))
 applyRightComm (CutRule c gamma cOrtho deltaCut
                 p1 
-                (PlusGRule a b deltaPlus p2)) =
+                (PlusLRule a b deltaPlus p2)) =
     let delta = filter ((/=) cOrtho) deltaPlus in
-        (PlusGRule a b (gamma++delta)
+        (PlusLRule a b (gamma++delta)
             (CutRule c gamma cOrtho (b:delta) p1 p2))
 applyRightComm (CutRule cOC gammaWN cOrthonWN deltaCut
                 (PromRule c gammaWNProm p1)
@@ -317,7 +317,7 @@ applyRightComm (CutRule c gamma cOrtho deltaCut
 
 
 
-elimCut :: Preuve -> Preuve
+elimCut :: Proof -> Proof
 elimCut p
     | isRedex p = 
         let (CutRule f gamma fOrtho delta p1 p2) = p in
@@ -325,7 +325,7 @@ elimCut p
         let p2' = elimCut p2 in
         elimCut (applyRedex (CutRule f gamma fOrtho delta p1' p2'))
     | isCutRooted p =
-        if (isLeftChildCutRooted p) then        --Faire remonter les Cut présent au dessus avant
+        if (isLeftChildCutRooted p) then        -- Eliminate children's CutRule before
             let CutRule f gam fO del p1 p2 = p in
             let p1' = elimCut p1 in
                 elimCut (CutRule f gam fO del p1' p2)
@@ -334,7 +334,7 @@ elimCut p
             let p2' = elimCut p2 in
                 elimCut (CutRule f gam fO del p1 p2')
         else let p' = applyComm p in elimCut p'
-    | otherwise = case p of
+    | otherwise = case p of                     --Gofurther in the Proof to find a CutRule (or the end of the Proof)
         (TensorRule f gamma g delta p1 p2) ->
             let p1' = elimCut p1 in
             let p2' = elimCut p2 in
@@ -345,12 +345,12 @@ elimCut p
         (BotRule gamma p1) ->
             let p1' = elimCut p1 in
             (BotRule gamma p1')
-        (PlusDRule f g gamma p1) ->
+        (PlusRRule f g gamma p1) ->
             let p1' = elimCut p1 in
-            (PlusDRule f g gamma p1')
-        (PlusGRule f g gamma p1) ->
+            (PlusRRule f g gamma p1')
+        (PlusLRule f g gamma p1) ->
             let p1' = elimCut p1 in
-            (PlusGRule f g gamma p1')
+            (PlusLRule f g gamma p1')
         (WithRule f g gamma p1 p2) ->
             let p1' = elimCut p1 in
             let p2' = elimCut p2 in

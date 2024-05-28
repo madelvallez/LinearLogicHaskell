@@ -1,12 +1,12 @@
-module KSequent1 (Sequent(..), Preuve(..), isValidProof, getProduit,getConclusion, isRedex, isCutRooted, isLeftChildCutRooted, isRightChildCutRooted) where
+module KSequent1 (Sequent(..), Proof(..), isValidProof, getProduction,getConclusion, isRedex, isCutRooted, isLeftChildCutRooted, isRightChildCutRooted) where
 import LogLin 
-------------------SEQUENTS UNILATERES---------------------------------------
+------------------UNILETERAL SEQUENTS---------------------------------------
 newtype Sequent = Sequent [LL] deriving Show
 
-retireSiAppartient :: LL -> Sequent -> (Sequent, Bool)
-retireSiAppartient e l  = case l of
+removeIfIn :: LL -> Sequent -> (Sequent, Bool)
+removeIfIn e l  = case l of
     Sequent [] -> (Sequent [], False)
-    Sequent (e':t) -> let (Sequent t',b) = retireSiAppartient e (Sequent t) in
+    Sequent (e':t) -> let (Sequent t',b) = removeIfIn e (Sequent t) in
         if (e==e') 
         then (Sequent t,True) 
         else (Sequent (e':t'),b)
@@ -16,8 +16,8 @@ instance Eq Sequent where
     s1 == s2 = case (s1, s2) of
         (Sequent [],Sequent []) -> True
         (Sequent (h1:t1),s2) -> 
-            let (s2',appartient) = retireSiAppartient h1 s2 
-            in if appartient then (Sequent t1) == s2' else False
+            let (s2',belong) = removeIfIn h1 s2 
+            in if belong then (Sequent t1) == s2' else False
         (_,_) -> False
 
 isWhyNotSequent :: Sequent -> Bool
@@ -27,36 +27,26 @@ isWhyNotSequent (Sequent s) = case s of
     _ -> False
 
 whyNotSequent = Sequent [WhyNot(Var "A"), WhyNot(Tensor a b)]
-pasWhyNotSequent = Sequent [Var "A", WhyNot(Tensor a b)]
-pasWhyNotSequent2 = Sequent [WhyNot(Var "A"),Var "A", WhyNot(Tensor a b)]
-pasWhyNotSequent3 = Sequent [WhyNot(Var "A"), WhyNot(Var "A"), Tensor a b]
+notWhyNotSequent = Sequent [Var "A", WhyNot(Tensor a b)]
+notWhyNotSequent2 = Sequent [WhyNot(Var "A"),Var "A", WhyNot(Tensor a b)]
+notWhyNotSequent3 = Sequent [WhyNot(Var "A"), WhyNot(Var "A"), Tensor a b]
 
----- Regles et Preuve
-{-data StructurePreuve = Axiome LL LL
-                    | Regle1 LL [LL] StructurePreuve
-                    | Regle2 LL [LL] StructurePreuve StructurePreuve
--}
-
--- data Axiome = Axiome {f :: LL, fOrtho :: LL}
--- data AxiomeUn = AxiomeUn {un :: LL} 
--- data ExangeRule = ExangeRule {gamma :: [LL], f :: LL, g:: LL, delta :: [LL]}
--- data CoupureRule = CoupureRule {gamma :: [LL], f :: LL, fOrtho :: LL, delta :: [LL]}
-
-data Preuve = AxRule LL LL
+---- Rules and Proof
+data Proof = AxRule LL LL
     | AxUn 
     | TopRule [LL]
---    | ExRule [LL] LL LL [LL] Preuve
-    | CutRule LL [LL] LL [LL] Preuve Preuve
-    | TensorRule LL [LL] LL [LL] Preuve Preuve
-    | ParrRule LL LL [LL] Preuve
-    | BotRule [LL] Preuve
-    | PlusGRule LL LL [LL] Preuve   -- le membre de gauche est ajouté
-    | PlusDRule LL LL [LL] Preuve   -- le membre de droite est ajouté
-    | WithRule LL LL [LL] Preuve Preuve
-    | PromRule LL [LL] Preuve
-    | DerRule LL [LL] Preuve
-    | AffRule LL [LL] Preuve
-    | ContrRule LL [LL] Preuve
+--    | ExRule [LL] LL LL [LL] Proof
+    | CutRule LL [LL] LL [LL] Proof Proof
+    | TensorRule LL [LL] LL [LL] Proof Proof
+    | ParrRule LL LL [LL] Proof
+    | BotRule [LL] Proof
+    | PlusLRule LL LL [LL] Proof   -- left part added
+    | PlusRRule LL LL [LL] Proof   -- right part added
+    | WithRule LL LL [LL] Proof Proof
+    | PromRule LL [LL] Proof
+    | DerRule LL [LL] Proof
+    | AffRule LL [LL] Proof
+    | ContrRule LL [LL] Proof
     deriving Show
 
 
@@ -64,25 +54,25 @@ a::LL
 a = Var "A"
 b::LL
 b = Var "B"
-p1 :: Preuve
+p1 :: Proof
 p1 = TensorRule a [WhyNot (Not a)] b [WhyNot (Not b)]
                     (DerRule (Not a) [a]
                         (AxRule a (Not a)))
                     (DerRule (Not b) [b]
                         (AxRule b (Not b)))
 
-p2 :: Preuve
+p2 :: Proof
 p2 = ParrRule (WhyNot (Not a)) (WhyNot (Not b)) [OfCourse (Tensor a b)]
                 (PromRule (Tensor a b) [WhyNot (Not a) , WhyNot (Not b)] 
                     p1)
 
-estPartition :: [LL] -> [LL] -> [LL] -> Bool -- teste si les deux premières listes sont une partition de la troixieme
-estPartition gamma delta union = 
+isPartition :: [LL] -> [LL] -> [LL] -> Bool -- check if the two first lists makes a partition of the third one
+isPartition gamma delta union = 
     let seq1 = Sequent (gamma++delta) in
     let seq2 = Sequent union in
         seq1 == seq2
 
-getConclusion :: Preuve -> Sequent
+getConclusion :: Proof -> Sequent
 getConclusion p = case p of
     AxRule f g -> Sequent [f,g]
     AxUn -> Sequent [Un]
@@ -92,8 +82,8 @@ getConclusion p = case p of
     TensorRule f gamma g delta _ _ -> Sequent ((Tensor f g):(delta ++ gamma))
     ParrRule f g gamma _ -> Sequent ((Parr f g):gamma)
     BotRule gamma _ -> Sequent (Bot:gamma)
-    PlusGRule f g gamma _ -> Sequent ((Plus f g):gamma)
-    PlusDRule f g gamma _ -> Sequent ((Plus f g):gamma)
+    PlusLRule f g gamma _ -> Sequent ((Plus f g):gamma)
+    PlusRRule f g gamma _ -> Sequent ((Plus f g):gamma)
     WithRule f g gamma _ _ -> Sequent ((With f g):gamma)
     PromRule f gamma _ -> Sequent ((OfCourse f):gamma)
     DerRule f gamma _ -> Sequent ((WhyNot f):gamma)
@@ -102,46 +92,46 @@ getConclusion p = case p of
 
 
 
-getProduit :: Preuve -> [LL]     --revoie un sequent avec les formules introduites par la dernière règle appliquée
-getProduit (AxRule a aOrtho) =  [a, aOrtho]
-getProduit AxUn =  [Un]
-getProduit (TopRule _) =  [Top]
-getProduit (CutRule _ _ _ _ _ _ ) =  []
-getProduit (TensorRule a _ b _ _ _ )=  [Tensor a b]
-getProduit (ParrRule a b _ _) =  [Parr a b]
-getProduit (BotRule _ _) =  [Bot]
-getProduit (PlusDRule a b _ _) =  [Plus a b]
-getProduit (PlusGRule a b _ _) =  [Plus a b]
-getProduit (WithRule a b _ _ _) =  [With a b]
-getProduit (PromRule a _ _) =  [OfCourse a]
-getProduit (DerRule a _ _) =  [WhyNot a]
-getProduit (AffRule a _ _) =  [WhyNot a]
-getProduit (ContrRule a _ _) =  [WhyNot a]
+getProduction :: Proof -> [LL]     --returns a list with the formulas created by the last rule
+getProduction (AxRule a aOrtho) =  [a, aOrtho]
+getProduction AxUn =  [Un]
+getProduction (TopRule _) =  [Top]
+getProduction (CutRule _ _ _ _ _ _ ) =  []
+getProduction (TensorRule a _ b _ _ _ )=  [Tensor a b]
+getProduction (ParrRule a b _ _) =  [Parr a b]
+getProduction (BotRule _ _) =  [Bot]
+getProduction (PlusRRule a b _ _) =  [Plus a b]
+getProduction (PlusLRule a b _ _) =  [Plus a b]
+getProduction (WithRule a b _ _ _) =  [With a b]
+getProduction (PromRule a _ _) =  [OfCourse a]
+getProduction (DerRule a _ _) =  [WhyNot a]
+getProduction (AffRule a _ _) =  [WhyNot a]
+getProduction (ContrRule a _ _) =  [WhyNot a]
 
-isAxRuleRooted :: Preuve -> Bool
+isAxRuleRooted :: Proof -> Bool
 isAxRuleRooted (AxRule _ _) = True
 isAxRuleRooted _ = False
 
-isRedex ::Preuve -> Bool
+isRedex ::Proof -> Bool
 isRedex (CutRule f _ fOrtho _ p1 p2) = 
     (isAxRuleRooted p1)
     || (isAxRuleRooted p2)
-    || ((f `elem` (getProduit p1)) && (fOrtho `elem` (getProduit p2)))
+    || ((f `elem` (getProduction p1)) && (fOrtho `elem` (getProduction p2)))
 isRedex _ = False 
 
-isCutRooted :: Preuve -> Bool
+isCutRooted :: Proof -> Bool
 isCutRooted (CutRule _ _ _ _ _ _) = True
 isCutRooted _ = False
 
-isLeftChildCutRooted :: Preuve -> Bool -- teste si un preuve cutRooted à sa souspreuve gauche cutRooted
+isLeftChildCutRooted :: Proof -> Bool -- teste si un Proof cutRooted à sa sousProof gauche cutRooted
 isLeftChildCutRooted (CutRule _ _ _ _ pch _) = isCutRooted pch
 isLeftChildCutRooted _ = False
 
-isRightChildCutRooted :: Preuve -> Bool -- teste si un preuve cutRooted à sa souspreuve gauche cutRooted
+isRightChildCutRooted :: Proof -> Bool -- teste si un Proof cutRooted à sa sousProof gauche cutRooted
 isRightChildCutRooted (CutRule _ _ _ _ _ pch) = isCutRooted pch
 isRightChildCutRooted _ = False
 
-isValidProof :: Preuve -> Bool
+isValidProof :: Proof -> Bool
 isValidProof p = case p of
     AxRule f g -> 
         areNegation f g       -- 
@@ -167,10 +157,10 @@ isValidProof p = case p of
     BotRule gamma p -> 
         (Sequent gamma == (getConclusion p))
         &&(isValidProof p)
-    PlusGRule f g gamma p ->
+    PlusLRule f g gamma p ->
         (Sequent(g:gamma)==(getConclusion p))
         &&(isValidProof p)
-    PlusDRule f g gamma p ->
+    PlusRRule f g gamma p ->
         (Sequent(f:gamma)==(getConclusion p))
         &&(isValidProof p)
     WithRule f g gamma pg pd ->
@@ -191,33 +181,56 @@ isValidProof p = case p of
         (Sequent((WhyNot f):(WhyNot f):gamma)==(getConclusion p))
         &&(isValidProof p)
 
-pn1 :: Preuve --fausse sur negation de cutrule
+pn1 :: Proof --invalid : CutRule negation criteria
 pn1 = CutRule (Plus a a) [Not a] (With a a) [Not a] 
-            (PlusDRule a a [Not a] 
+            (PlusRRule a a [Not a] 
                 (AxRule a (Not a)))
             (WithRule a a [Not a] (
                 AxRule a (Not a)) (
                 AxRule a (Not a)))
 
-pn2 :: Preuve  -- faux sur negation axiomme
+pn2 :: Proof  -- invalid : AxRule negation criteria
 pn2 = AxRule (Tensor a b) (Tensor (Not a) (Not b))
 
-pn3 :: Preuve   -- faux sur gamma de WithRule
+pn3 :: Proof   -- invalid because of WithRule's gamma
 pn3 = WithRule a a [Plus (Not a) b , Plus (Not a) a]
-                (PlusDRule (Not a) b [a] 
+                (PlusRRule (Not a) b [a] 
                     (AxRule a (Not a)))
-                (PlusDRule (Not a) a [a]
+                (PlusRRule (Not a) a [a]
                     (AxRule a (Not a)))
 
-pn4 :: Preuve
+pn4 :: Proof
 pn4 = AffRule a [Not a] (AxRule a (Not a))
 
-pn5 :: Preuve
+pn5 :: Proof
 pn5 = PromRule a [Not a] (AxRule a (Not a))
 
-pn6 :: Preuve
+pn6 :: Proof
 pn6 = DerRule (Not a) [Tensor a a]
         (TensorRule a [Not a] a [Not a]
             (AxRule a (Not a))
             (AxRule a (Not a)))
 
+main = 
+    if not $ isWhyNotSequent whyNotSequent then
+        error "isWhyNotSequent whyNotSequent == False"
+    else if isWhyNotSequent notWhyNotSequent then
+        error "isWhyNotSequent notWhyNotSequent == True"
+    else if isWhyNotSequent notWhyNotSequent2 then
+        error "isWhyNotSequent notWhyNotSequent2 == True"
+    else if isWhyNotSequent notWhyNotSequent3 then
+        error "isWhyNotSequent notWhyNotSequent3 == True"
+    else if isValidProof pn1 then
+        error "isValidProof pn1"
+    else if isValidProof pn2 then
+        error "isValidProof pn2"
+    else if isValidProof pn3 then
+        error "isValidProof pn3"
+    else if not $ isValidProof pn4 then
+        error "not isValidProof pn4"
+    else if not $ isValidProof pn5 then
+        error "not isValidProof pn5"
+    else if not $ isValidProof pn6 then
+        error "Not isValidProof pn6"
+    else
+        print "Tests OK"
