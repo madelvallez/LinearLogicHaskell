@@ -1,4 +1,4 @@
-module ElimCut(elimCut, applyComm, applyRedex) where
+module ElimCut(elimCut, applyComm, applyRightComm, applyLeftComm, applyRedex, getCutStatus, isPromRooted) where
 import LogLin
 import KSequent1
 import Data.List
@@ -74,15 +74,15 @@ applyRedex p = case p of
                     itereWhyNotRule gamma'(AffRule f' delta proof)
             in itereWhyNotRule gamma p2
 
-    CutRule fWN gamma fOrthoWN deltaWN
+    CutRule fWN gamma fOrthoWN deltaCut
         (AffRule f gammaAff p1)
-        (PromRule fOrtho delta p2)
+        (PromRule fOrtho deltaWN p2)
         -> let itereAffRule gamma proof = case gamma of
                 [] -> proof
                 (f:gamma') -> let Sequent delta = getConclusion proof in
                     let WhyNot f' = f in
                     itereAffRule gamma'(AffRule f' delta proof)
-            in itereAffRule delta p1
+            in itereAffRule deltaWN p1
 
     CutRule fOC gammaWN fOrthoWN delta
         (PromRule f gamma p1)
@@ -121,17 +121,30 @@ applyRedex p = case p of
 
 
 
+getCutStatus :: Preuve -> (Bool,Bool,Bool,Bool)   
+    --indique les informations suivantes 
+    --  - si la règle fils gauche de cut est coupée
+    --  - si la règle fils droite de cut est coupée
+    --  - si la règle fils gauche est ParrRule
+    --  - si la règle fils droite est ParrRule
+getCutStatus (CutRule f gamma fOrtho delta p1 p2) =
+    (f `elem` getProduit p1 , fOrtho `elem` getProduit p2, isPromRooted p1, isPromRooted p2)
+getCutStatus _ = error "getCutStatus only works on cutRooted Proofs"
 
+isPromRooted :: Preuve -> Bool
+isPromRooted (PromRule _ _ _) = True 
+isPromRooted _ = False
 
 applyComm :: Preuve -> Preuve
-applyComm (CutRule f gamma fOrtho delta p1 p2)
-    | not $ elem f (getProduit p1) =
-        applyLeftComm (CutRule f gamma fOrtho delta p1 p2)
-    | not $ elem fOrtho (getProduit p2) =
-        applyRightComm (CutRule f gamma fOrtho delta p1 p2)
-    | otherwise =
-        error "Not a commutation case"
-applyComm _ = error "Not a commutation case"
+applyComm p  = case (getCutStatus p) of
+    (False, _, True, True) -> applyLeftComm p
+    (False, _, True, False) -> applyRightComm p 
+    (_, False, True, True) -> applyRightComm p
+    (_, False, False, True) -> applyLeftComm p 
+    (True,_,_,_) -> applyRightComm p 
+    (_,True,_,_) -> applyLeftComm p 
+    _ -> applyLeftComm p
+
 
 applyLeftComm :: Preuve -> Preuve
 applyLeftComm (CutRule f gammaCut fOrtho delta 
@@ -259,7 +272,7 @@ applyRightComm (CutRule c gamma cOrtho deltaCut p (TopRule deltaTop)) =
 applyRightComm (CutRule c gamma cOrtho deltaCut
                 p1
                 (PlusDRule a b deltaPlus p2)) =
-    let delta = filter ((/=) c ) deltaPlus in
+    let delta = filter ((/=) cOrtho ) deltaPlus in
         (PlusDRule a b (gamma++delta) 
             (CutRule c gamma cOrtho (a:delta) p1 p2))
 applyRightComm (CutRule c gamma cOrtho deltaCut
@@ -312,7 +325,7 @@ elimCut p
         let p2' = elimCut p2 in
         elimCut (applyRedex (CutRule f gamma fOrtho delta p1' p2'))
     | isCutRooted p =
-        if (isLeftChildCutRooted p) then
+        if (isLeftChildCutRooted p) then        --Faire remonter les Cut présent au dessus avant
             let CutRule f gam fO del p1 p2 = p in
             let p1' = elimCut p1 in
                 elimCut (CutRule f gam fO del p1' p2)
